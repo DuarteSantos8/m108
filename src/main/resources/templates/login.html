@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Login — OWASP Demo-Lab')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+
+<main class="auth">
+    <div class="auth-card">
+
+        <!-- Brand / hero panel -->
+        <aside class="auth-aside">
+            <div class="eyebrow">OWASP Demo-Lab · Modul 183</div>
+            <div class="lock" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+            <h2>Sicher anmelden, sicher lernen.</h2>
+            <p>Eine Lern-Sandbox, die OWASP-Risiken zuerst vorführt und direkt
+                daneben absichert — mit echtem Spring-Security-Schutz am Login.</p>
+            <ul class="auth-features">
+                <li>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    Account-Lockout nach 5 Fehlversuchen
+                </li>
+                <li>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    IP-Rate-Limit gegen Credential-Stuffing
+                </li>
+                <li>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    Bild-CAPTCHA gegen Automatisierung
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Form panel -->
+        <section class="auth-main">
+            <h1>Anmelden</h1>
+            <p class="sub">Melde dich an, um die Demos zu öffnen.</p>
+
+            <div class="alert err" role="alert"
+                 th:if="${param.error != null and param.error[0] == 'bad'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <span>Benutzername oder Passwort ist falsch.</span>
+            </div>
+            <div class="alert err" role="alert"
+                 th:if="${param.error != null and param.error[0] == 'captcha'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <span>CAPTCHA falsch oder abgelaufen. Bitte erneut eingeben.</span>
+            </div>
+            <div class="alert warn" role="alert"
+                 th:if="${param.error != null and param.error[0] == 'locked'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Konto vorübergehend gesperrt (zu viele Fehlversuche). Bitte in ein paar Minuten erneut versuchen.</span>
+            </div>
+            <div class="alert warn" role="alert"
+                 th:if="${param.error != null and param.error[0] == 'ratelimit'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <span>Zu viele Login-Versuche von dieser Adresse. Bitte einen Moment warten.</span>
+            </div>
+            <div class="alert ok" role="status" th:if="${param.logout != null}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>Du wurdest abgemeldet.</span>
+            </div>
+
+            <form th:action="@{/login}" method="post" id="login-form">
+                <label for="username">Benutzername</label>
+                <input type="text" id="username" name="username"
+                       autocomplete="username" autofocus placeholder="z. B. alice"/>
+
+                <label for="password">Passwort</label>
+                <div class="field">
+                    <input type="password" id="password" name="password"
+                           autocomplete="current-password" placeholder="••••••••"/>
+                    <button type="button" class="field-btn" id="toggle-pw"
+                            aria-label="Passwort anzeigen" aria-pressed="false">
+                        <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/>
+                            <path d="M6.6 6.6A13.2 13.2 0 0 0 2 12s3.5 7 10 7a9.1 9.1 0 0 0 5.4-1.6"/>
+                            <path d="m2 2 20 20"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="caps-hint" id="caps-hint">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 6-6 6 6"/><path d="M6 18h12"/></svg>
+                    Feststelltaste (Caps Lock) ist aktiv
+                </div>
+
+                <label for="captcha">CAPTCHA</label>
+                <div class="captcha-row">
+                    <div class="captcha-img">
+                        <img id="captcha-img" th:src="@{/captcha.png}" width="150" height="56" alt="CAPTCHA-Code"/>
+                        <button type="button" class="captcha-refresh" id="captcha-refresh"
+                                aria-label="Neuen CAPTCHA-Code laden">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="grow">
+                        <input type="text" id="captcha" name="captcha" autocomplete="off"
+                               inputmode="text" placeholder="Code eingeben"/>
+                    </div>
+                </div>
+
+                <button type="submit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>
+                    </svg>
+                    Anmelden
+                </button>
+            </form>
+
+            <div class="demo-fill">
+                <div class="demo-label">Testkonten — zum Ausfüllen klicken</div>
+                <div class="demo-chips">
+                    <button type="button" class="chip" data-role="user"
+                            data-user="alice" data-pass="Alice!2345">alice <span class="role">USER</span></button>
+                    <button type="button" class="chip" data-role="user"
+                            data-user="bob" data-pass="Bob!23456">bob <span class="role">USER</span></button>
+                    <button type="button" class="chip" data-role="admin"
+                            data-user="admin" data-pass="Admin!2345">admin <span class="role">ADMIN</span></button>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script th:src="@{/js/login.js}"></script>
+</body>
+</html>

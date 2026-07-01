@@ -1,0 +1,52 @@
+server:
+  port: 8080
+  # Hinter Cloudflare -> cloudflared -> Traefik: X-Forwarded-* auswerten,
+  # damit die App HTTPS erkennt (HSTS/Secure-Cookies) und korrekte URLs bildet.
+  forward-headers-strategy: framework
+  error:
+    include-stacktrace: never      # A10: niemals Stack-Traces an den Client
+    include-message: never
+    include-binding-errors: never
+
+spring:
+  application:
+    name: m108-owasp
+  datasource:
+    # In-Memory-Sandbox. Keine Stacked Queries -> SQL-Injection-Demo bleibt
+    # auf SELECTs der product-Tabelle begrenzt.
+    url: jdbc:h2:mem:m108;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  thymeleaf:
+    cache: true
+  h2:
+    console:
+      enabled: false               # H2-Konsole bewusst AUS (A02)
+
+# A02 — Security Misconfiguration: Actuator stark eingeschränkt.
+# Nur /actuator/health ist offen; env/shutdown/beans usw. sind NICHT exponiert.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+    shutdown:
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    ch.duartesantos.m108: INFO
+    SECURITY_AUDIT: INFO
+    org.springframework.security: WARN

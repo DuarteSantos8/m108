@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Doku — OWASP-Risiken')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <div class="page-head">
+        <div class="eyebrow">Modul 183 · Dokumentation</div>
+        <h1>OWASP-Risiken — Doku</h1>
+        <p class="lead">Pro Risiko nach dem geforderten Schema: <em>Was ist die Schwachstelle?
+            Wie wurde sie demonstriert? Welche Gegenmassnahme wurde implementiert?</em>
+            Alle Demos laufen in der flüchtigen In-Memory-Sandbox.</p>
+        <span class="crit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Bewertungskriterium: Risiken demonstriert &amp; Gegenmassnahmen dokumentiert
+        </span>
+    </div>
+
+    <nav class="toc">
+        <a href="#a01">A01 · Access Control</a>
+        <a href="#a05">A05 · Injection</a>
+        <a href="#a04">A04 · Crypto</a>
+        <a href="#a02">A02 · Misconfig</a>
+        <a href="#a07">A07 · Auth Failures</a>
+        <a href="#a10">A10 · Exceptions</a>
+        <a href="#a09">A09 · Logging</a>
+    </nav>
+
+    <!-- A01 -->
+    <div class="box risk" id="a01">
+        <div class="risk-head"><span class="tag">A01</span><h3>Broken Access Control · Bibliotheksverwaltung</h3></div>
+        <p class="muted">Zugriffsentscheidungen werden an eine ID aus dem Request festgemacht statt am
+            angemeldeten Benutzer (IDOR). Wer die ID manipuliert, sieht fremde Daten.</p>
+        <div class="risk-grid">
+            <div class="vuln">
+                <h4><span class="badge vuln">Demo</span></h4>
+                <p><code class="inline">/demo/a01</code> → „verwundbar": als <code class="inline">alice</code>
+                    angemeldet <code class="inline">owner=bob</code> eingeben →
+                    <code class="inline">GET /demo/a01?mode=vulnerable&amp;owner=bob</code> liefert Bobs Ausleihen aus.</p>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p>Sicherer Pfad ignoriert den Owner-Parameter und liest nur Daten des Principals
+                    (<code class="inline">findByOwnerUsername(auth.getName())</code>). Privilegierte Sichten per
+                    <code class="inline">@PreAuthorize("hasRole('ADMIN')")</code> — <code class="inline">ROLE_USER</code> erhält 403. Default-Deny.</p>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">web/DemoController.java</code>, <code class="inline">config/SecurityConfig.java</code></div>
+    </div>
+
+    <!-- A05 -->
+    <div class="box risk" id="a05">
+        <div class="risk-head"><span class="tag">A05</span><h3>Injection · Produktkatalog mit Suche</h3></div>
+        <p class="muted">Die Sucheingabe wird direkt in den SQL-String verkettet — so lässt sich die
+            WHERE-Bedingung umschreiben.</p>
+        <div class="risk-grid">
+            <div class="vuln">
+                <h4><span class="badge vuln">Demo</span></h4>
+                <p>Payload <code class="inline">%' OR '1'='1</code> hebelt den <code class="inline">listed = TRUE</code>-Filter
+                    aus; interne Produkte (<code class="inline">INTERN …</code>) tauchen auf.</p>
+                <pre>... WHERE listed = TRUE
+    AND name LIKE '%%' OR '1'='1'</pre>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p>Parameterbindung über Spring Data JPA — Eingaben werden nie als SQL interpretiert:</p>
+                <pre>@Query("... like lower(concat('%', :term, '%'))")
+List&lt;Product&gt; searchListed(@Param("term") String t);</pre>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">demo/VulnerableProductDao.java</code>, <code class="inline">demo/ProductRepository.java</code></div>
+    </div>
+
+    <!-- A04 -->
+    <div class="box risk" id="a04">
+        <div class="risk-head"><span class="tag">A04</span><h3>Cryptographic Failures · Passwortspeicherung</h3></div>
+        <p class="muted">Passwörter im Klartext oder mit schnellem, ungesalzenem Hash (MD5) sind bei
+            einem DB-Leak trivial wiederherstellbar; gleiches Passwort ergibt gleichen Hash.</p>
+        <div class="risk-grid">
+            <div class="vuln">
+                <h4><span class="badge vuln">Demo</span></h4>
+                <p><code class="inline">/demo/a04</code> → Zeichenkette eingeben und Klartext, MD5 und BCrypt
+                    nebeneinander vergleichen. BCrypt ist bei jedem Aufruf anders (Salt).</p>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p><code class="inline">BCryptPasswordEncoder</code> als <code class="inline">PasswordEncoder</code>-Bean;
+                    echte Anmeldedaten nur als BCrypt-Hash gespeichert. HTTPS erzwungen, HSTS gesetzt.</p>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">config/SecurityConfig.java</code>, <code class="inline">user/DataSeeder.java</code>, <code class="inline">demo/CryptoDemoService.java</code></div>
+    </div>
+
+    <!-- A02 -->
+    <div class="box risk" id="a02">
+        <div class="risk-head"><span class="tag">A02</span><h3>Security Misconfiguration · Actuator &amp; Header</h3></div>
+        <p class="muted">Unkonfiguriert exponiert Spring Boot Actuator <code class="inline">/actuator/env</code> (Secrets)
+            oder <code class="inline">/actuator/shutdown</code> (DoS). Fehlende Security-Header öffnen XSS/Clickjacking.</p>
+        <div class="risk-grid">
+            <div class="vuln">
+                <h4><span class="badge vuln">Nachweis</span></h4>
+                <p><code class="inline">/actuator/health</code> → 200 (UP), <code class="inline">/actuator/env</code> &amp;
+                    <code class="inline">/actuator/beans</code> → gesperrt. Header: <code class="inline">curl -I …</code>.</p>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p>Actuator-Exposure auf <code class="inline">health</code> begrenzt, <code class="inline">shutdown</code> deaktiviert.
+                    Security-Header zentral im <code class="inline">HeadersConfigurer</code> (CSP, HSTS, X-Frame-Options DENY, nosniff …). H2-Konsole aus.</p>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">config/SecurityConfig.java</code>, <code class="inline">application.yml</code></div>
+    </div>
+
+    <!-- A07 -->
+    <div class="box risk" id="a07">
+        <div class="risk-head"><span class="tag">A07</span><h3>Authentication Failures · Brute-Force / Credential Stuffing</h3></div>
+        <p class="muted">Ohne Schutz lassen sich Passwörter automatisiert durchprobieren bzw. geleakte
+            Zugangsdaten breit testen.</p>
+        <div class="risk-grid">
+            <div class="vuln">
+                <h4><span class="badge vuln">Demo</span></h4>
+                <p>Direkt am Login: nach 5 falschen Versuchen „Konto vorübergehend gesperrt"; viele
+                    Versuche von einer IP lösen die Rate-Limit-Meldung aus.</p>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p><code class="inline">LoginGuardFilter</code> läuft <strong>vor</strong> der Passwortprüfung: IP-Rate-Limit,
+                    CAPTCHA, Account-Lockout (5 Versuche → 15 Min). Erfolgreicher Login setzt den Zähler zurück.</p>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">security/LoginGuardFilter.java</code>, <code class="inline">security/LoginAttemptService.java</code>, <code class="inline">security/CaptchaService.java</code></div>
+    </div>
+
+    <!-- A10 -->
+    <div class="box risk" id="a10">
+        <div class="risk-head"><span class="tag">A10</span><h3>Mishandling of Exceptional Conditions</h3></div>
+        <p class="muted">Stack-Traces im HTTP-Response verraten interne Klassen, Pfade und Versionen —
+            wertvolle Aufklärung für Angreifer.</p>
+        <div class="risk-grid">
+            <div class="vuln">
+                <h4><span class="badge vuln">Demo</span></h4>
+                <p><code class="inline">/demo/a10</code> → beide Buttons teilen durch 0. „verwundbar" zeigt den
+                    geleakten Stack-Trace, „sicher" löst dieselbe Exception generisch behandelt aus.</p>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p>Globales <code class="inline">@ControllerAdvice</code> gibt dem Client nur eine generische Meldung +
+                    Korrelations-ID; voller Stack-Trace nur ins Server-Log. <code class="inline">include-stacktrace=never</code>.</p>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">web/GlobalExceptionHandler.java</code>, <code class="inline">application.yml</code></div>
+    </div>
+
+    <!-- A09 -->
+    <div class="box risk" id="a09">
+        <div class="risk-head"><span class="tag">A09</span><h3>Security Logging (Querschnitt)</h3></div>
+        <p class="muted">Ohne Logging von Login-Versuchen fehlen Audit-Trails; werden Passwörter/Tokens
+            geloggt, entsteht ein neues Leck.</p>
+        <div class="risk-grid">
+            <div class="safe">
+                <h4><span class="badge safe">Gegenmassnahme</span></h4>
+                <p>Dedizierter <code class="inline">SECURITY_AUDIT</code>-Logger (eigener Appender, JSON-ähnlich) für
+                    <code class="inline">LOGIN_SUCCESS/FAILURE</code>, <code class="inline">ACCOUNT_LOCKED</code> u. a. — niemals Passwort/CAPTCHA/Token.</p>
+            </div>
+            <div class="safe">
+                <h4><span class="badge safe">Details</span></h4>
+                <p>Eigene Seite mit Live-Beispiel: <a th:href="@{/logging}">Logging-Doku öffnen →</a></p>
+            </div>
+        </div>
+        <div class="files">Code: <code class="inline">security/AuthEventListener.java</code>, <code class="inline">logback-spring.xml</code></div>
+    </div>
+
+    <p class="footer-note">Vollständige schriftliche Doku pro Risiko: <code class="inline">docs/OWASP-Risiken.md</code> ·
+        Architektur: <a th:href="@{/architektur}">/architektur</a> · Logging: <a th:href="@{/logging}">/logging</a></p>
+</main>
+</body>
+</html>

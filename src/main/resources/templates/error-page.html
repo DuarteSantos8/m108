@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Fehler')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>Fehler <span th:text="${status}">500</span></h1>
+    <div class="alert err" th:text="${message}">Es ist ein Fehler aufgetreten.</div>
+    <p class="muted">Referenz-ID: <code class="inline" th:text="${ref}">—</code></p>
+    <p class="muted">Diese Seite zeigt bewusst keine internen Details. Der vollständige
+        Kontext steht nur im Server-Log (A10).</p>
+    <a class="btn ghost" th:href="@{/}">Zur Startseite</a>
+</main>
+</body>
+</html>

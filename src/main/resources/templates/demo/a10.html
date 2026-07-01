@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('A10 Exception Handling')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>A10 — Mishandling of Exceptional Conditions</h1>
+    <p class="lead">Was sieht der Client, wenn serverseitig ein Fehler passiert?
+        Beide Buttons teilen durch 0.</p>
+
+    <div class="split">
+        <div class="box vuln">
+            <span class="badge vuln">verwundbar</span>
+            <h3>Stack-Trace im Response</h3>
+            <p class="muted">Leakt interne Klassen, Pfade und Versionen — wertvolle
+                Aufklärung für Angreifer.</p>
+            <form th:action="@{/demo/a10/leak}" method="get">
+                <input type="hidden" name="divisor" value="0"/>
+                <button class="btn danger" type="submit">Fehler auslösen (leakend)</button>
+            </form>
+        </div>
+        <div class="box safe">
+            <span class="badge safe">abgesichert</span>
+            <h3>Generische Fehlerseite</h3>
+            <p class="muted">Gleiche Exception, aber der <code class="inline">@ControllerAdvice</code>
+                gibt nur eine generische Meldung + Korrelations-ID aus. Details landen
+                ausschliesslich im Server-Log.</p>
+            <form th:action="@{/demo/a10/safe}" method="get">
+                <input type="hidden" name="divisor" value="0"/>
+                <button class="btn" type="submit">Fehler auslösen (sicher)</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${leak != null}">
+        <h2>Was der Client sieht (verwundbar)</h2>
+        <pre th:text="${leak}"></pre>
+    </div>
+
+    <h2>Gegenmassnahme</h2>
+    <ul class="clean">
+        <li>Globales <code class="inline">@ControllerAdvice</code> mit generischen Meldungen
+            für den Client.</li>
+        <li>Vollständige Details + Korrelations-ID nur ins Server-Log.</li>
+        <li><code class="inline">server.error.include-stacktrace=never</code> in der Konfiguration.</li>
+    </ul>
+</main>
+</body>
+</html>

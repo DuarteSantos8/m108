@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('A02 Security Misconfiguration')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>A02 — Security Misconfiguration</h1>
+    <p class="lead">Zwei klassische Fehlkonfigurationen: offene Actuator-Endpunkte
+        und fehlende Security-Header.</p>
+
+    <div class="split">
+        <div class="box vuln">
+            <span class="badge vuln">verwundbar (Gegenbeispiel)</span>
+            <h3>Offene Actuator-Endpunkte</h3>
+            <p class="muted">Unkonfiguriert exponiert Spring Boot Actuator u.&nbsp;a.
+                <code class="inline">/actuator/env</code> (Secrets!) und
+                <code class="inline">/actuator/shutdown</code> (DoS).</p>
+        </div>
+        <div class="box safe">
+            <span class="badge safe">abgesichert (diese App)</span>
+            <h3>Exposure eingeschränkt</h3>
+            <p class="muted">Nur <code class="inline">/actuator/health</code> ist offen,
+                <code class="inline">shutdown</code> deaktiviert. Prüf es selbst:</p>
+            <ul class="clean">
+                <li><a th:href="@{/actuator/health}">/actuator/health</a> → 200 (nur <code class="inline">UP</code>)</li>
+                <li><a th:href="@{/actuator/env}">/actuator/env</a> → 401/404 (gesperrt)</li>
+                <li><a th:href="@{/actuator/beans}">/actuator/beans</a> → 401/404 (gesperrt)</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gesetzte Security-Header</h2>
+    <p class="muted">Per <code class="inline">curl -I https://m-108.duarte-santos.ch/</code>
+        nachprüfbar. Diese App setzt u.&nbsp;a.:</p>
+    <pre>Content-Security-Policy: default-src 'self'; img-src 'self' data:; script-src 'self'; object-src 'none'; frame-ancestors 'none'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=()</pre>
+
+    <h2>Gegenmassnahme</h2>
+    <ul class="clean">
+        <li>Actuator-Exposure auf das Nötigste begrenzen, <code class="inline">shutdown</code> aus.</li>
+        <li>Security-Header zentral in der <code class="inline">HeadersConfigurer</code> setzen
+            (CSP, HSTS, X-Frame-Options, nosniff).</li>
+        <li>HTTPS erzwingen, H2-Konsole und Debug-Endpunkte in Produktion deaktivieren.</li>
+    </ul>
+</main>
+</body>
+</html>

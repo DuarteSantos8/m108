@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Admin — OWASP Demo-Lab')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>Admin-Bereich</h1>
+    <p class="lead">Nur mit <code class="inline">ROLE_ADMIN</code> erreichbar — durchgesetzt
+        durch die URL-Regel <code class="inline">/admin/** → hasRole('ADMIN')</code> in der
+        Filter-Chain (Least Privilege).</p>
+
+    <h2>Benutzer</h2>
+    <table>
+        <tr><th>ID</th><th>Benutzername</th><th>Anzeigename</th><th>Rollen</th><th>Passwort-Hash</th></tr>
+        <tr th:each="u : ${users}">
+            <td th:text="${u.id}">1</td>
+            <td th:text="${u.username}">alice</td>
+            <td th:text="${u.displayName}">Alice</td>
+            <td th:text="${u.roles}">ROLE_USER</td>
+            <td><code class="inline" th:text="${#strings.abbreviate(u.passwordHash, 32)}">$2a$...</code></td>
+        </tr>
+    </table>
+    <p class="muted">Die Passwörter liegen ausschliesslich als BCrypt-Hash vor (A04).</p>
+</main>
+</body>
+</html>

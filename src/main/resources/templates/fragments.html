@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${title}">OWASP Demo-Lab</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="icon" href="data:,"/>
+</head>
+<body>
+<header class="topbar" th:fragment="topbar">
+    <div class="brand">OWASP <span>Demo-Lab</span> · M183</div>
+    <nav>
+        <a th:href="@{/}">Start</a>
+        <a sec:authorize="isAuthenticated()" th:href="@{/dashboard}">Dashboard</a>
+        <a sec:authorize="isAuthenticated()" th:href="@{/demo/a01}">A01</a>
+        <a sec:authorize="isAuthenticated()" th:href="@{/demo/a05}">A05</a>
+        <a sec:authorize="isAuthenticated()" th:href="@{/demo/a04}">A04</a>
+        <a sec:authorize="isAuthenticated()" th:href="@{/demo/a02}">A02</a>
+        <a sec:authorize="isAuthenticated()" th:href="@{/demo/a10}">A10</a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}">Admin</a>
+        <span class="nav-sep" aria-hidden="true"></span>
+        <a th:href="@{/architektur}">Architektur</a>
+        <a th:href="@{/logging}">Logging</a>
+        <a th:href="@{/doku}">Doku</a>
+    </nav>
+    <div class="spacer"></div>
+    <span class="user" sec:authorize="isAuthenticated()">
+        angemeldet als <strong sec:authentication="name">user</strong>
+    </span>
+    <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+        <button class="btn ghost" type="submit">Logout</button>
+    </form>
+    <a sec:authorize="!isAuthenticated()" class="btn" th:href="@{/login}">Login</a>
+</header>
+</body>
+</html>

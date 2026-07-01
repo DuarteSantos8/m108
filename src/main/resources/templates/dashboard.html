@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Dashboard — OWASP Demo-Lab')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>Dashboard</h1>
+    <p class="lead">Angemeldet als <strong th:text="${username}">user</strong>.</p>
+    <p>Deine Authorities:
+        <span th:each="a : ${authorities}">
+            <code class="inline" th:text="${a.authority}">ROLE_USER</code>&nbsp;
+        </span>
+    </p>
+
+    <h2>Demos</h2>
+    <div class="grid">
+        <div class="card"><span class="tag">A01</span><h3>Broken Access Control</h3>
+            <a class="btn ghost" th:href="@{/demo/a01}">öffnen</a></div>
+        <div class="card"><span class="tag">A05</span><h3>Injection</h3>
+            <a class="btn ghost" th:href="@{/demo/a05}">öffnen</a></div>
+        <div class="card"><span class="tag">A04</span><h3>Cryptographic Failures</h3>
+            <a class="btn ghost" th:href="@{/demo/a04}">öffnen</a></div>
+        <div class="card"><span class="tag">A02</span><h3>Security Misconfiguration</h3>
+            <a class="btn ghost" th:href="@{/demo/a02}">öffnen</a></div>
+        <div class="card"><span class="tag">A10</span><h3>Exception Handling</h3>
+            <a class="btn ghost" th:href="@{/demo/a10}">öffnen</a></div>
+        <div class="card" sec:authorize="hasRole('ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+            <span class="tag">ADMIN</span><h3>Admin-Bereich</h3>
+            <a class="btn ghost" th:href="@{/admin}">öffnen</a></div>
+    </div>
+</main>
+</body>
+</html>

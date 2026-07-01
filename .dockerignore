@@ -1,0 +1,13 @@
+# Nur das vorgebaute JAR wird ins Image kopiert — Build-Kontext klein halten.
+src
+.mvn
+mvnw
+mvnw.cmd
+docs
+README.md
+target/classes
+target/test-classes
+target/generated-sources
+target/maven-status
+target/surefire-reports
+target/*.jar.original

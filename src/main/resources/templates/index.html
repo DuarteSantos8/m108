@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('OWASP Demo-Lab — Modul 183')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>OWASP Demo-Lab</h1>
+    <p class="lead">Modul 183 — Java Spring Security. Jede Schwachstelle wird zuerst
+        vorgeführt und direkt daneben mit der Gegenmassnahme abgesichert.</p>
+
+    <div class="alert info">
+        Lern-Sandbox: Alle Daten liegen in einer flüchtigen In-Memory-Datenbank
+        (reine Demo-Daten, keine echten Personendaten). Die „verwundbaren" Pfade
+        wirken ausschliesslich auf diese Sandbox.
+    </div>
+
+    <h2>Demonstrierte Risiken</h2>
+    <div class="grid">
+        <div class="card">
+            <span class="tag">A01</span>
+            <h3>Broken Access Control</h3>
+            <p>IDOR in der Bibliotheksverwaltung — fremde Ausleihen über die User-ID
+                abrufen, abgesichert per Ownership-Check und <code class="inline">@PreAuthorize</code>.</p>
+            <a class="btn ghost" th:href="@{/demo/a01}">Demo öffnen</a>
+        </div>
+        <div class="card">
+            <span class="tag">A05</span>
+            <h3>Injection</h3>
+            <p>SQL-Injection in der Produktsuche durch String-Verkettung — abgesichert
+                mit Parameterbindung (Spring Data JPA).</p>
+            <a class="btn ghost" th:href="@{/demo/a05}">Demo öffnen</a>
+        </div>
+        <div class="card">
+            <span class="tag">A04</span>
+            <h3>Cryptographic Failures</h3>
+            <p>Passwortspeicherung Klartext / MD5 gegenüber BCrypt mit Salt.</p>
+            <a class="btn ghost" th:href="@{/demo/a04}">Demo öffnen</a>
+        </div>
+        <div class="card">
+            <span class="tag">A02</span>
+            <h3>Security Misconfiguration</h3>
+            <p>Offene Actuator-Endpunkte und fehlende Security-Header — abgesichert
+                über Exposure-Limit und CSP/HSTS/X-Frame-Options.</p>
+            <a class="btn ghost" th:href="@{/demo/a02}">Demo öffnen</a>
+        </div>
+        <div class="card">
+            <span class="tag">A07</span>
+            <h3>Authentication Failures</h3>
+            <p>Brute-Force/Credential-Stuffing — abgesichert mit Account-Lockout,
+                IP-Rate-Limit und CAPTCHA. Direkt am Login erlebbar.</p>
+            <a class="btn ghost" th:href="@{/login}">Zum Login</a>
+        </div>
+        <div class="card">
+            <span class="tag">A10</span>
+            <h3>Mishandling of Exceptions</h3>
+            <p>Stack-Traces im HTTP-Response gegenüber generischer Fehlerseite via
+                <code class="inline">@ControllerAdvice</code>.</p>
+            <a class="btn ghost" th:href="@{/demo/a10}">Demo öffnen</a>
+        </div>
+    </div>
+
+    <h2>Anmelden zum Ausprobieren</h2>
+    <p>Die Demos sind nur angemeldet erreichbar. Testkonten:</p>
+    <table>
+        <tr><th>Benutzer</th><th>Passwort</th><th>Rolle</th></tr>
+        <tr><td><code class="inline">alice</code></td><td><code class="inline">Alice!2345</code></td><td>ROLE_USER</td></tr>
+        <tr><td><code class="inline">bob</code></td><td><code class="inline">Bob!23456</code></td><td>ROLE_USER</td></tr>
+        <tr><td><code class="inline">admin</code></td><td><code class="inline">Admin!2345</code></td><td>ROLE_ADMIN</td></tr>
+    </table>
+
+    <h2>Dokumentation &amp; Bewertung</h2>
+    <p>Die für Modul 183 geforderten Nachweise — ohne Login einsehbar:</p>
+    <div class="grid">
+        <div class="card">
+            <span class="tag">DOKU</span>
+            <h3>OWASP-Risiken</h3>
+            <p>Pro Risiko: Schwachstelle, Demonstration und implementierte Gegenmassnahme.</p>
+            <a class="btn ghost" th:href="@{/doku}">Doku öffnen</a>
+        </div>
+        <div class="card">
+            <span class="tag">ARCH</span>
+            <h3>Security-Architektur</h3>
+            <p>Filter-Chain, Least Privilege, CSRF/CORS und gesetzte Security-Header.</p>
+            <a class="btn ghost" th:href="@{/architektur}">Architektur öffnen</a>
+        </div>
+        <div class="card">
+            <span class="tag">LOG</span>
+            <h3>Sicheres Logging</h3>
+            <p>SLF4J + Logback, dedizierter Audit-Strom, keine Secrets im Log.</p>
+            <a class="btn ghost" th:href="@{/logging}">Logging öffnen</a>
+        </div>
+    </div>
+
+    <p class="footer-note">Spring Boot 3 · Spring Security 6 · Thymeleaf · H2 (in-memory).
+        Quellcode &amp; Doku liegen im Projekt-Repository
+        (<a href="https://github.com/DuarteSantos8/m108">github.com/DuarteSantos8/m108</a>).</p>
+</main>
+</body>
+</html>

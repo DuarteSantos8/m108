@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Logging — OWASP Demo-Lab')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <div class="page-head">
+        <div class="eyebrow">Modul 183 · Dokumentation</div>
+        <h1>Sicheres Logging</h1>
+        <p class="lead">SLF4J + Logback mit dediziertem Sicherheits-Audit-Strom —
+            sicherheitsrelevante Ereignisse strukturiert protokolliert, ohne je ein
+            Geheimnis preiszugeben.</p>
+        <span class="crit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Bewertungskriterium: Logging korrekt und sicher implementiert
+        </span>
+    </div>
+
+    <nav class="toc">
+        <a href="#appenders">Appender</a>
+        <a href="#events">Audit-Ereignisse</a>
+        <a href="#levels">Log-Level</a>
+        <a href="#secrets">Keine Secrets</a>
+        <a href="#sample">Live-Beispiel</a>
+    </nav>
+
+    <h2 id="appenders">Zwei Appender (Logback)</h2>
+    <p>Konfiguriert in <code class="inline">logback-spring.xml</code>. Der Audit-Strom ist
+        bewusst vom Anwendungs-Log getrennt (<code class="inline">additivity="false"</code>),
+        damit er separat nach Logstash/Loki abgegriffen werden kann.</p>
+    <div class="split">
+        <div class="box">
+            <h3>STDOUT</h3>
+            <p class="muted">Allgemeines Anwendungs-Log im Klartextmuster, von Docker eingesammelt.
+                Root-Logger auf <code class="inline">INFO</code>.</p>
+        </div>
+        <div class="box safe">
+            <h3>AUDIT — <code class="inline">SECURITY_AUDIT</code></h3>
+            <p class="muted">Dedizierter, strukturierter Strom (JSON-ähnliche Zeile) nur für
+                sicherheitsrelevante Ereignisse. Quelle: <code class="inline">security/AuthEventListener.java</code>.</p>
+        </div>
+    </div>
+
+    <h2 id="events">Protokollierte Sicherheitsereignisse</h2>
+    <p>Logins, Zugriffe und Fehler werden über den <code class="inline">SECURITY_AUDIT</code>-Logger erfasst:</p>
+    <table>
+        <tr><th>Event</th><th>Level</th><th>Bedeutung</th></tr>
+        <tr><td><code class="inline">LOGIN_SUCCESS</code></td><td>INFO</td><td>Erfolgreiche Anmeldung (nur Benutzername).</td></tr>
+        <tr><td><code class="inline">LOGIN_FAILURE</code></td><td>WARN</td><td>Falsche Anmeldedaten.</td></tr>
+        <tr><td><code class="inline">LOGIN_CAPTCHA_FAIL</code></td><td>WARN</td><td>CAPTCHA falsch/abgelaufen.</td></tr>
+        <tr><td><code class="inline">LOGIN_RATE_LIMIT</code></td><td>WARN</td><td>Zu viele Versuche von einer IP.</td></tr>
+        <tr><td><code class="inline">ACCOUNT_LOCKED</code></td><td>WARN</td><td>Konto nach 5 Fehlversuchen gesperrt (15 Min).</td></tr>
+    </table>
+
+    <h2 id="levels">Log-Level sinnvoll eingesetzt</h2>
+    <div class="levels">
+        <span class="lvl debug">DEBUG</span>
+        <span class="lvl info">INFO</span>
+        <span class="lvl warn">WARN</span>
+        <span class="lvl error">ERROR</span>
+    </div>
+    <ul class="icon-list">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span><strong>INFO</strong> für normalen Betrieb (z. B. erfolgreicher Login, Demo-Daten geladen).</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span><strong>WARN</strong> für verdächtige/abgewehrte Ereignisse (Fehlversuche, Lockout, abgelehnter Zugriff).</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span><strong>ERROR</strong> für unerwartete Server-Fehler — vollständiger Stack-Trace nur ins Server-Log (siehe A10).</span></li>
+    </ul>
+
+    <h2 id="secrets">Keine sensiblen Daten im Log</h2>
+    <div class="box vuln">
+        <span class="badge vuln">Niemals geloggt</span>
+        <p class="muted" style="margin-top:0.6rem">Passwörter, CAPTCHA-Lösungen, Session-Tokens und
+            personenbezogene Daten (PII) werden <strong>bewusst nie</strong> protokolliert. Der
+            <code class="inline">AuthEventListener</code> schreibt ausschliesslich Benutzername, Ereignistyp
+            und (bei IP-Limits) die Client-IP.</p>
+    </div>
+
+    <h2 id="sample">Live-Beispiel des Audit-Stroms</h2>
+    <div class="terminal">
+        <div class="terminal-bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="tt">SECURITY_AUDIT — stdout</span>
+        </div>
+        <pre>{<span class="k">"ts":</span>"2026-06-25T09:31:45.664+02:00",<span class="k">"level":</span>"<span class="lvl-info">INFO</span>",<span class="k">"event":</span>"LOGIN_SUCCESS user=alice"}
+{<span class="k">"ts":</span>"2026-06-25T09:32:02.118+02:00",<span class="k">"level":</span>"<span class="lvl-warn">WARN</span>",<span class="k">"event":</span>"LOGIN_CAPTCHA_FAIL user=alice ip=127.0.0.1"}
+{<span class="k">"ts":</span>"2026-06-25T09:32:14.507+02:00",<span class="k">"level":</span>"<span class="lvl-warn">WARN</span>",<span class="k">"event":</span>"LOGIN_FAILURE user=bob"}
+{<span class="k">"ts":</span>"2026-06-25T09:32:51.992+02:00",<span class="k">"level":</span>"<span class="lvl-warn">WARN</span>",<span class="k">"event":</span>"ACCOUNT_LOCKED user=bob"}
+<span class="k"># password / captcha / token →</span> <span class="redacted">NIE im Log</span></pre>
+    </div>
+
+    <p class="footer-note">Code: <code class="inline">security/AuthEventListener.java</code>,
+        <code class="inline">resources/logback-spring.xml</code> · entspricht OWASP A09 (Security Logging &amp; Alerting Failures).</p>
+</main>
+</body>
+</html>

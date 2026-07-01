@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('A04 Cryptographic Failures')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>A04 — Cryptographic Failures</h1>
+    <p class="lead">Wie wird ein Passwort gespeichert? Gib eine Demo-Zeichenkette ein
+        und vergleiche die Verfahren. (Eingabe wird nicht gespeichert.)</p>
+
+    <form th:action="@{/demo/a04}" method="get">
+        <label for="pw">Demo-Passwort</label>
+        <input type="text" id="pw" name="pw" th:value="${input}" placeholder="hunter2"/>
+        <button class="btn" type="submit">Hashen</button>
+    </form>
+
+    <div th:if="${input != null}">
+        <div class="box vuln">
+            <span class="badge vuln">unsicher</span>
+            <h3>Klartext</h3>
+            <pre th:text="${plaintext}"></pre>
+            <p class="muted">Datenbank-Leak = sofort alle Passwörter im Klartext.</p>
+        </div>
+        <div class="box vuln">
+            <span class="badge vuln">unsicher</span>
+            <h3>MD5 (ungesalzen)</h3>
+            <pre th:text="${md5}"></pre>
+            <p class="muted">Schnell, ungesalzen, per Rainbow-Table / GPU trivial umkehrbar.
+                Gleiches Passwort → gleicher Hash.</p>
+        </div>
+        <div class="box safe">
+            <span class="badge safe">sicher</span>
+            <h3>BCrypt (Spring Security)</h3>
+            <pre th:text="${bcrypt}"></pre>
+            <p class="muted">Mit Salt und einstellbarem Work-Factor. Bei jedem Aufruf
+                anders — lade die Seite neu und vergleiche. Genau dieses Verfahren nutzt
+                die App für die echte Anmeldung.</p>
+        </div>
+    </div>
+
+    <h2>Gegenmassnahme</h2>
+    <ul class="clean">
+        <li><code class="inline">BCryptPasswordEncoder</code> als <code class="inline">PasswordEncoder</code>-Bean;
+            Passwörter nur als Hash speichern.</li>
+        <li>HTTPS erzwingen (hier via Cloudflare + HSTS-Header).</li>
+        <li>Keine sensiblen Daten in Logs (siehe A09).</li>
+    </ul>
+</main>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Architektur — OWASP Demo-Lab')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <div class="page-head">
+        <div class="eyebrow">Modul 183 · Dokumentation</div>
+        <h1>Security-Architektur</h1>
+        <p class="lead">Entwurf, Implementierung und Inbetriebnahme — Filter-Chain,
+            minimales Privileg, CSRF/CORS und die gesetzten Security-Header.</p>
+        <span class="crit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Bewertungskriterium: Architektur dokumentiert
+        </span>
+    </div>
+
+    <nav class="toc">
+        <a href="#flow">Überblick</a>
+        <a href="#chain">Filter-Chain</a>
+        <a href="#least">Least Privilege</a>
+        <a href="#csrf">CSRF / CORS</a>
+        <a href="#headers">Security-Header</a>
+        <a href="#deploy">Inbetriebnahme</a>
+    </nav>
+
+    <h2 id="flow">Überblick</h2>
+    <p>TLS endet bei Cloudflare. Da die App ausschliesslich über den HTTPS-Tunnel
+        erreichbar ist, setzt Traefik <code class="inline">X-Forwarded-Proto: https</code>;
+        Spring (<code class="inline">forward-headers-strategy: framework</code>) erkennt
+        dadurch HTTPS, setzt HSTS und bildet korrekte Redirects.</p>
+    <pre>Browser ──HTTPS──&gt; Cloudflare ──Tunnel──&gt; cloudflared ──&gt; Traefik ──HTTP──&gt; Spring-Boot-App (8080)
+   (TLS am Edge)     (WAF/CDN)              (X-Forwarded-Proto=https)         │
+                                                                             ├─ SecurityFilterChain
+                                                                             ├─ Thymeleaf-Views
+                                                                             └─ H2 (in-memory, Demo-Daten)</pre>
+
+    <h2 id="chain">Spring Security Filter-Chain</h2>
+    <p>Jede Anfrage durchläuft die Filter-Chain in dieser Reihenfolge. Der eigene
+        <code class="inline">LoginGuardFilter</code> hängt bewusst <strong>vor</strong> der
+        Passwortprüfung, damit Rate-Limit, CAPTCHA und Lockout greifen, bevor ein Passwort
+        verarbeitet wird.</p>
+    <ol class="steps">
+        <li><strong>SecurityContextHolderFilter</strong> — lädt den Security-Kontext aus der Session.</li>
+        <li><strong>CsrfFilter</strong> — prüft den <code class="inline">_csrf</code>-Token bei state-changing Requests (POST).</li>
+        <li class="own"><strong>LoginGuardFilter</strong> <span class="own-tag">EIGENER FILTER</span> — nur bei
+            <code class="inline">POST /login</code>: IP-Rate-Limit → CAPTCHA → Account-Lockout.
+            Fehlschlag → Redirect auf <code class="inline">/login?error=…</code>, bevor ein Passwort verarbeitet wird.</li>
+        <li><strong>UsernamePasswordAuthenticationFilter</strong> — Authentifizierung gegen
+            <code class="inline">AppUserDetailsService</code> (+ <code class="inline">BCryptPasswordEncoder</code>).</li>
+        <li><strong>ExceptionTranslationFilter</strong> — wandelt Access-/AuthenticationException in 403/Redirect.</li>
+        <li><strong>AuthorizationFilter</strong> — setzt die URL-Autorisierungsregeln durch.</li>
+    </ol>
+    <p class="muted">Eingehängt über <code class="inline">http.addFilterBefore(loginGuardFilter,
+        UsernamePasswordAuthenticationFilter.class)</code> in <code class="inline">config/SecurityConfig.java</code>.</p>
+
+    <h2 id="least">Least Privilege (minimales Privileg)</h2>
+    <ul class="icon-list">
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span><strong>Default-Deny:</strong> <code class="inline">anyRequest().authenticated()</code> — alles
+                ist gesperrt, ausser explizit freigegeben (<code class="inline">/</code>, <code class="inline">/login</code>,
+                <code class="inline">/captcha.png</code>, statische Assets, Doku-Seiten, <code class="inline">/actuator/health</code>).</span>
+        </li>
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span><code class="inline">/admin/**</code> verlangt <code class="inline">ROLE_ADMIN</code>.</span>
+        </li>
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span><strong>Method-Level Security</strong> (<code class="inline">@EnableMethodSecurity</code> +
+                <code class="inline">@PreAuthorize</code>) für feingranulare Regeln zusätzlich zur URL-Ebene.</span>
+        </li>
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>Demo-Konten haben nur die nötigen Rollen; der Docker-Prozess läuft als non-root User (<code class="inline">app</code>).</span>
+        </li>
+    </ul>
+
+    <h2 id="csrf">CSRF &amp; CORS</h2>
+    <div class="split">
+        <div class="box safe">
+            <h3>CSRF</h3>
+            <p class="muted">Standardmässig <strong>aktiv</strong> (Synchronizer-Token). Alle Formulare senden den
+                <code class="inline">_csrf</code>-Token über Thymeleaf automatisch mit.</p>
+            <p class="muted">Nachweis: <code class="inline">POST /login</code> ohne Token → <strong>HTTP 403</strong>.
+                Nur <code class="inline">/actuator/health</code> ist ausgenommen (idempotenter GET-Healthcheck).</p>
+        </div>
+        <div class="box safe">
+            <h3>CORS</h3>
+            <p class="muted">Restriktiv (<code class="inline">CorsConfigurationSource</code>): erlaubte Origin nur
+                <code class="inline">https://m-108.duarte-santos.ch</code>, Methoden <code class="inline">GET</code>/<code class="inline">POST</code>.</p>
+            <p class="muted">Keine Wildcard-Origin in Kombination mit <code class="inline">allowCredentials</code>.</p>
+        </div>
+    </div>
+
+    <h2 id="headers">Security-Header</h2>
+    <p>Zentral im <code class="inline">HeadersConfigurer</code> gesetzt:</p>
+    <table>
+        <tr><th>Header</th><th>Wert</th></tr>
+        <tr><td>Content-Security-Policy</td><td><code class="inline">default-src 'self'; img-src 'self' data:; script-src 'self'; object-src 'none'; frame-ancestors 'none'</code></td></tr>
+        <tr><td>Strict-Transport-Security</td><td><code class="inline">max-age=31536000; includeSubDomains</code></td></tr>
+        <tr><td>X-Frame-Options</td><td><code class="inline">DENY</code></td></tr>
+        <tr><td>X-Content-Type-Options</td><td><code class="inline">nosniff</code></td></tr>
+        <tr><td>Referrer-Policy</td><td><code class="inline">strict-origin-when-cross-origin</code></td></tr>
+        <tr><td>Permissions-Policy</td><td><code class="inline">geolocation=(), microphone=(), camera=()</code></td></tr>
+    </table>
+
+    <h2 id="deploy">Inbetriebnahme</h2>
+    <ul class="icon-list">
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+            <span>Fat-JAR auf dem <code class="inline">pve</code>-Host gebaut, runtime-only
+                <code class="inline">eclipse-temurin:21-jre</code>-Image auf der Docker-VM
+                (non-root, Healthcheck auf <code class="inline">/actuator/health</code>, <code class="inline">mem_limit 384m</code>, JVM <code class="inline">-Xmx256m</code>).</span>
+        </li>
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Keine Secrets im Image/Repo; In-Memory-DB ohne Persistenz.</span>
+        </li>
+        <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>
+            <span>Public ausschliesslich über den Cloudflare-Tunnel — keine offenen Ports am Host.</span>
+        </li>
+    </ul>
+
+    <p class="footer-note">Code: <code class="inline">config/SecurityConfig.java</code>,
+        <code class="inline">security/LoginGuardFilter.java</code> · vollständige Architektur-Doku unter
+        <code class="inline">docs/Architektur.md</code> im Repository.</p>
+</main>
+</body>
+</html>

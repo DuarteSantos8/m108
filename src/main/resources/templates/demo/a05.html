@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('A05 Injection')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>A05 — Injection (SQL)</h1>
+    <p class="lead">Produktkatalog mit Suche. Es gibt gelistete Produkte und zwei
+        <em>ungelistete</em> „INTERN"-Produkte, die normal nicht auftauchen sollten.</p>
+
+    <div class="alert info">
+        Injection-Payload zum Testen im verwundbaren Feld:
+        <code class="inline">%' OR '1'='1</code> — hebelt den <code class="inline">listed = TRUE</code>-Filter
+        aus und legt die internen Produkte offen.
+    </div>
+
+    <div class="split">
+        <div class="box vuln">
+            <span class="badge vuln">verwundbar</span>
+            <h3>String-Verkettung im SQL</h3>
+            <form th:action="@{/demo/a05}" method="get">
+                <input type="hidden" name="mode" value="vulnerable"/>
+                <label for="qv">Suchbegriff</label>
+                <input type="text" id="qv" name="q" th:value="${mode == 'vulnerable' ? q : ''}" placeholder="Kabel"/>
+                <button class="btn danger" type="submit">Unsicher suchen</button>
+            </form>
+        </div>
+        <div class="box safe">
+            <span class="badge safe">abgesichert</span>
+            <h3>Parameterbindung (JPA)</h3>
+            <form th:action="@{/demo/a05}" method="get">
+                <input type="hidden" name="mode" value="secure"/>
+                <label for="qs">Suchbegriff</label>
+                <input type="text" id="qs" name="q" th:value="${mode == 'secure' ? q : ''}" placeholder="' OR '1'='1"/>
+                <button class="btn" type="submit">Sicher suchen</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${sql != null}">
+        <h2>Ausgeführtes SQL</h2>
+        <pre th:text="${sql}">SELECT ...</pre>
+    </div>
+
+    <div th:if="${result != null}">
+        <h2>Treffer (<span th:text="${result.size()}">0</span>)</h2>
+        <table th:if="${!result.isEmpty()}">
+            <tr><th>Name</th><th>Kategorie</th><th>Preis</th><th>gelistet</th></tr>
+            <tr th:each="p : ${result}">
+                <td th:text="${p.name}">USB-C Kabel</td>
+                <td th:text="${p.category}">Zubehör</td>
+                <td th:text="${p.price}">9.90</td>
+                <td th:text="${p.listed} ? 'ja' : 'NEIN — intern!'">ja</td>
+            </tr>
+        </table>
+        <p class="muted" th:if="${result.isEmpty()}">Keine Treffer.</p>
+    </div>
+
+    <h2>Gegenmassnahme</h2>
+    <ul class="clean">
+        <li>Niemals Eingaben in SQL verketten — <code class="inline">PreparedStatement</code>
+            bzw. parametrisierte Queries verwenden.</li>
+        <li>Hier: Spring Data JPA mit <code class="inline">@Query</code> und benanntem
+            Parameter (<code class="inline">:term</code>).</li>
+        <li>Eingaben validieren, Least-Privilege-DB-Benutzer, keine Stacked Queries.</li>
+    </ul>
+</main>
+</body>
+</html>

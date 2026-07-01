@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('A01 Broken Access Control')}"></head>
+<body>
+<header th:replace="~{fragments :: topbar}"></header>
+<main>
+    <h1>A01 — Broken Access Control</h1>
+    <p class="lead">Bibliotheksverwaltung. Du bist angemeldet als
+        <strong th:text="${me}">user</strong>. Jede Ausleihe gehört einem Benutzer
+        (<code class="inline">alice</code> oder <code class="inline">bob</code>).</p>
+
+    <div class="split">
+        <div class="box vuln">
+            <span class="badge vuln">verwundbar</span>
+            <h3>IDOR über die User-ID</h3>
+            <p class="muted">Die Owner-ID kommt ungeprüft aus dem Request — du kannst
+                fremde Ausleihen lesen. Versuch z.&nbsp;B. <code class="inline">bob</code>,
+                obwohl du <span th:text="${me}">alice</span> bist.</p>
+            <form th:action="@{/demo/a01}" method="get">
+                <input type="hidden" name="mode" value="vulnerable"/>
+                <label for="owner">Owner (User-ID)</label>
+                <input type="text" id="owner" name="owner" th:value="${requestedOwner}" placeholder="bob"/>
+                <button class="btn danger" type="submit">Ungeprüft abrufen</button>
+            </form>
+        </div>
+
+        <div class="box safe">
+            <span class="badge safe">abgesichert</span>
+            <h3>Ownership-Check + @PreAuthorize</h3>
+            <p class="muted">Der sichere Pfad ignoriert den Owner-Parameter und zeigt
+                nur <em>deine</em> Daten. Der Admin-Pfad ist per Method-Level-Security
+                geschützt — als Nicht-Admin bekommst du 403.</p>
+            <form th:action="@{/demo/a01}" method="get">
+                <input type="hidden" name="mode" value="secure"/>
+                <button class="btn" type="submit">Meine Ausleihen</button>
+            </form>
+            <form th:action="@{/demo/a01/admin-view}" method="get">
+                <label for="aowner">Admin-Einsicht (Owner)</label>
+                <input type="text" id="aowner" name="owner" placeholder="bob"/>
+                <button class="btn ghost" type="submit">Als Admin abrufen</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${result != null}">
+        <h2 th:switch="${mode}">
+            <span th:case="'vulnerable'">Ergebnis (verwundbar) — Owner: <span th:text="${requestedOwner}"></span></span>
+            <span th:case="'secure'">Ergebnis (sicher) — nur eigene Daten</span>
+            <span th:case="'admin'">Ergebnis (Admin-Einsicht) — Owner: <span th:text="${requestedOwner}"></span></span>
+            <span th:case="*">Ergebnis</span>
+        </h2>
+        <table th:if="${!result.isEmpty()}">
+            <tr><th>ID</th><th>Owner</th><th>Titel</th><th>Notiz</th></tr>
+            <tr th:each="b : ${result}">
+                <td th:text="${b.id}">1</td>
+                <td th:text="${b.ownerUsername}">alice</td>
+                <td th:text="${b.title}">Clean Code</td>
+                <td th:text="${b.notes}">Notiz</td>
+            </tr>
+        </table>
+        <p class="muted" th:if="${result.isEmpty()}">Keine Datensätze.</p>
+    </div>
+
+    <h2>Gegenmassnahme</h2>
+    <ul class="clean">
+        <li>Zugriff serverseitig am angemeldeten Principal festmachen, nie an einer
+            ID aus dem Request.</li>
+        <li><code class="inline">@PreAuthorize("hasRole('ADMIN')")</code> für privilegierte
+            Sichten (Method-Level Security).</li>
+        <li>Default-Deny in der Filter-Chain (<code class="inline">anyRequest().authenticated()</code>).</li>
+    </ul>
+</main>
+</body>
+</html>
